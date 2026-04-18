@@ -1,0 +1,1075 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Measure Difficulty Graph</title>
+<style>
+  :root {
+    --ink: #1a1a1a;
+    --grid: #b8cfe0;
+    --grid-strong: #5b7a93;
+    --dash: #c0392b;
+    --connect: #d46354;
+    --accent: #2b6cb0;
+    --accent-dark: #1e4e8c;
+    --accent-soft: #e8f0fa;
+    --bg: #eef3f9;
+    --card: #ffffff;
+    --muted: #6b7280;
+    --danger: #b91c1c;
+    --ok: #047857;
+    --cell: 34px;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background:
+      radial-gradient(1200px 400px at 10% -10%, rgba(43,108,176,0.10), transparent 60%),
+      radial-gradient(900px 350px at 110% -20%, rgba(192,57,43,0.08), transparent 60%),
+      var(--bg);
+    color: var(--ink);
+    -webkit-text-size-adjust: 100%;
+    min-height: 100vh;
+  }
+
+  header {
+    background: linear-gradient(135deg, #ffffff 0%, #f3f7fc 100%);
+    border-bottom: 1px solid #dbe4ef;
+    padding: 14px 22px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    box-shadow: 0 2px 10px rgba(30, 78, 140, 0.06);
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1 1 auto;
+  }
+  .brand .icon {
+    width: 40px;
+    height: 40px;
+    color: var(--accent);
+    flex: 0 0 auto;
+    filter: drop-shadow(0 1px 1px rgba(30,78,140,0.15));
+  }
+  .brand h1 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--accent-dark);
+  }
+  .brand .sub {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  button {
+    font-family: inherit;
+    font-size: 16px;
+    font-weight: 600;
+    padding: 10px 16px;
+    border-radius: 10px;
+    border: 2px solid transparent;
+    cursor: pointer;
+    min-height: 44px;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s, border-color 0.15s, transform 0.05s;
+  }
+  button:active { transform: translateY(1px); }
+  button:disabled { opacity: 0.45; cursor: not-allowed; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent-dark); }
+  .btn-ghost { background: #fff; color: var(--ink); border-color: #cbd5e1; }
+  .btn-ghost:hover { background: #f1f5f9; }
+  .btn-danger { background: #fff; color: var(--danger); border-color: #fecaca; }
+  .btn-danger:hover { background: #fef2f2; }
+  .btn-icon {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .btn-icon svg { width: 18px; height: 18px; }
+
+  main {
+    padding: 22px;
+    max-width: 1600px;
+    margin: 0 auto;
+  }
+
+  .panel {
+    background: var(--card);
+    border-radius: 16px;
+    padding: 18px;
+    box-shadow: 0 1px 3px rgba(30, 78, 140, 0.06), 0 4px 20px rgba(30, 78, 140, 0.04);
+    margin-bottom: 20px;
+    border: 1px solid #e6edf5;
+  }
+
+  .rater {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .rater-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .measure-label {
+    font-size: 18px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .measure-label .note-icon {
+    width: 22px; height: 22px; color: var(--accent);
+  }
+  .measure-label .num {
+    display: inline-block;
+    min-width: 2ch;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+  }
+  .nav-btns { display: flex; gap: 8px; }
+
+  .rating-buttons {
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    gap: 8px;
+  }
+  .rating-buttons button {
+    padding: 14px 0;
+    font-size: 20px;
+    background: #fff;
+    border: 2px solid #cbd5e1;
+    color: var(--ink);
+  }
+  .rating-buttons button[data-selected="true"] {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+    box-shadow: 0 4px 10px rgba(43, 108, 176, 0.35);
+  }
+  .rating-buttons button:hover { border-color: var(--accent); }
+
+  .hint {
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  /* Scroll controls */
+  .scroll-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .scroll-toolbar .scroll-group { display: flex; gap: 6px; }
+  .scroll-toolbar button {
+    padding: 8px 14px;
+    min-height: 40px;
+    background: #fff;
+    border: 2px solid #cbd5e1;
+    color: var(--accent-dark);
+  }
+  .scroll-toolbar button:hover { background: var(--accent-soft); border-color: var(--accent); }
+  .scroll-toolbar .scroll-status {
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .graph-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+    border: 1px solid #e6edf5;
+    border-radius: 10px;
+    background: #fff;
+  }
+  /* bigger scrollbar for easier touch/desktop navigation */
+  .graph-wrap::-webkit-scrollbar { height: 14px; }
+  .graph-wrap::-webkit-scrollbar-track { background: #eef3f9; border-radius: 10px; }
+  .graph-wrap::-webkit-scrollbar-thumb {
+    background: #9bb5ce;
+    border-radius: 10px;
+    border: 2px solid #eef3f9;
+  }
+  .graph-wrap::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+  /* Graph paper */
+  svg.graph { display: block; background: #fff; }
+  svg.graph .minor { stroke: var(--grid); stroke-width: 1; }
+  svg.graph .major { stroke: var(--grid-strong); stroke-width: 1.2; }
+  svg.graph .bonus-bg { fill: #fafcff; }
+  svg.graph .axis-label { font: 600 12px -apple-system, sans-serif; fill: #475569; }
+  svg.graph .col-label { font: 600 11px -apple-system, sans-serif; fill: #334155; }
+  svg.graph .dash { stroke: var(--dash); stroke-width: 4; stroke-linecap: round; }
+  svg.graph .connector { stroke: var(--dash); stroke-width: 4; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  svg.graph .active-col { fill: #fef08a; opacity: 0.35; }
+  svg.graph .hit { fill: transparent; cursor: pointer; }
+
+  /* Piece details card (below graph) */
+  .piece-card .title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--accent-dark);
+    margin-bottom: 14px;
+  }
+  .piece-card .title svg { width: 22px; height: 22px; color: var(--accent); }
+  .piece-grid {
+    display: grid;
+    grid-template-columns: auto 1fr 1fr;
+    gap: 14px;
+    align-items: end;
+  }
+  @media (max-width: 720px) {
+    .piece-grid { grid-template-columns: 1fr; }
+  }
+  .piece-field { display: flex; flex-direction: column; gap: 6px; }
+  .piece-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .piece-field input[type="text"] {
+    padding: 10px 12px;
+    font-size: 16px;
+    font-family: inherit;
+    border: 2px solid #cbd5e1;
+    border-radius: 10px;
+    background: #fff;
+    color: var(--ink);
+    min-height: 44px;
+  }
+  .piece-field input[type="text"]:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(43,108,176,0.15);
+  }
+  .stepper {
+    display: inline-flex;
+    align-items: stretch;
+    border: 2px solid #cbd5e1;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #fff;
+  }
+  .stepper button {
+    border-radius: 0;
+    border: none;
+    background: #fff;
+    color: var(--accent-dark);
+    font-size: 22px;
+    font-weight: 700;
+    padding: 0 16px;
+    min-width: 48px;
+  }
+  .stepper button:hover { background: var(--accent-soft); }
+  .stepper input {
+    width: 80px;
+    border: none;
+    border-left: 2px solid #e6edf5;
+    border-right: 2px solid #e6edf5;
+    text-align: center;
+    font-size: 20px;
+    font-weight: 600;
+    font-family: inherit;
+    color: var(--ink);
+    -moz-appearance: textfield;
+    background: #fff;
+  }
+  .stepper input::-webkit-outer-spin-button,
+  .stepper input::-webkit-inner-spin-button {
+    -webkit-appearance: none; margin: 0;
+  }
+
+  .legend {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 12px;
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .legend .sw {
+    display: inline-block;
+    width: 24px; height: 4px;
+    background: var(--dash); border-radius: 2px;
+    vertical-align: middle; margin-right: 6px;
+  }
+  .legend .sw-line {
+    display: inline-block;
+    width: 24px; height: 2px;
+    background: var(--connect); border-radius: 2px;
+    vertical-align: middle; margin-right: 6px;
+  }
+
+  /* Print-preview modal */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(14, 32, 52, 0.55);
+    display: none;
+    align-items: stretch;
+    justify-content: center;
+    z-index: 50;
+    padding: 20px;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: #f3f6fb;
+    border-radius: 16px;
+    width: 100%;
+    max-width: 1100px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  }
+  .modal-header {
+    background: #fff;
+    padding: 14px 18px;
+    border-bottom: 1px solid #e6edf5;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .modal-header h2 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--accent-dark);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .modal-header svg { width: 22px; height: 22px; color: var(--accent); }
+  .modal-actions { display: flex; gap: 8px; }
+  .modal-body {
+    padding: 20px;
+    overflow: auto;
+    flex: 1 1 auto;
+    background: #d9e0ea;
+  }
+  .preview-page {
+    background: #fff;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+    margin: 0 auto 18px;
+    padding: 10mm 12mm;
+    border-radius: 4px;
+    width: min(1040px, 100%);
+    aspect-ratio: 11 / 8.5;          /* landscape letter */
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 4mm;
+    box-sizing: border-box;
+  }
+  .preview-page svg.graph {
+    width: 100%;
+    height: auto;
+    max-height: 100%;
+    display: block;
+    flex: 0 1 auto;
+  }
+  .preview-page .preview-head,
+  .print-page .print-head {
+    margin: 0 0 6px 0;
+    display: block;
+  }
+  .page-song {
+    display: block;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--accent-dark);
+    line-height: 1.15;
+  }
+  .page-student {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+  .page-range {
+    display: block;
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+  @media print {
+    .print-head { margin: 0 0 4mm 0; display: block !important; }
+    .page-song { display: block !important; font-size: 18pt; font-weight: 700; color: #1e4e8c; }
+    .page-student { display: block !important; font-size: 12pt; font-weight: 600; color: #475569; margin-top: 2mm; }
+    .page-range { display: block !important; font-size: 10pt; color: #475569; margin-top: 1mm; }
+  }
+
+  /* Footer decoration */
+  .foot-deco {
+    text-align: center;
+    color: #a9bcd1;
+    font-size: 12px;
+    margin: 8px 0 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+  }
+  .foot-deco svg { width: 16px; height: 16px; color: #a9bcd1; }
+
+  /* Print */
+  @media print {
+    :root { --cell: 28px; }
+    body { background: #fff; }
+    header, .panel.rater-panel, .no-print, .legend, .modal-overlay, .foot-deco { display: none !important; }
+    main { padding: 0; max-width: none; }
+    .panel { box-shadow: none; border-radius: 0; padding: 0; margin: 0; border: none; }
+    .graph-wrap { overflow: visible; border: none; border-radius: 0; }
+    .print-page {
+      page-break-after: always;
+      break-after: page;
+      padding: 8mm 8mm 0 8mm;
+    }
+    .print-page:last-child { page-break-after: auto; break-after: auto; }
+    @page { size: landscape; margin: 8mm; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Reusable SVG icons -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <!-- Beamed eighth notes (primary brand mark) -->
+    <symbol id="i-notes" viewBox="0 0 24 24">
+      <rect x="5.2" y="3" width="1.8" height="14" fill="currentColor"/>
+      <rect x="17" y="3" width="1.8" height="14" fill="currentColor"/>
+      <rect x="5.2" y="3" width="13.6" height="2.6" fill="currentColor"/>
+      <ellipse cx="4.2" cy="17" rx="3.2" ry="2.3" transform="rotate(-20 4.2 17)" fill="currentColor"/>
+      <ellipse cx="16" cy="17" rx="3.2" ry="2.3" transform="rotate(-20 16 17)" fill="currentColor"/>
+    </symbol>
+    <!-- Quarter note -->
+    <symbol id="i-note" viewBox="0 0 24 24">
+      <rect x="13.1" y="3" width="1.8" height="14" fill="currentColor"/>
+      <ellipse cx="10.2" cy="17" rx="4" ry="2.9" transform="rotate(-20 10.2 17)" fill="currentColor"/>
+    </symbol>
+    <!-- Printer -->
+    <symbol id="i-print" viewBox="0 0 24 24">
+      <path fill="currentColor" d="M8 3h8a1 1 0 0 1 1 1v4H7V4a1 1 0 0 1 1-1Z"/>
+      <path fill="currentColor" d="M5 9a3 3 0 0 0-3 3v4a1 1 0 0 0 1 1h3v3a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-3h3a1 1 0 0 0 1-1v-4a3 3 0 0 0-3-3H5Zm2 7h10v4H7v-4Zm11-4a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"/>
+    </symbol>
+    <!-- Refresh (new graph) -->
+    <symbol id="i-refresh" viewBox="0 0 24 24">
+      <path fill="currentColor" d="M17.65 6.35A7.95 7.95 0 0 0 12 4a8 8 0 1 0 7.75 10h-2.08A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35Z"/>
+    </symbol>
+  </defs>
+</svg>
+
+<header class="no-print">
+  <div class="brand">
+    <svg class="icon" aria-hidden="true"><use href="#i-notes"/></svg>
+    <div>
+      <h1>Graphestra</h1>
+      <span class="sub">A practice chart for music students</span>
+    </div>
+  </div>
+  <button id="print-btn" class="btn-primary btn-icon" type="button">
+    <svg aria-hidden="true"><use href="#i-print"/></svg>
+    <span>Print…</span>
+  </button>
+  <button id="reset-btn" class="btn-danger btn-icon" type="button">
+    <svg aria-hidden="true"><use href="#i-refresh"/></svg>
+    <span>New Graph</span>
+  </button>
+</header>
+
+<main>
+
+  <section class="panel rater-panel no-print" aria-label="Rate measure">
+    <div class="rater">
+      <div class="rater-top">
+        <div class="measure-label">
+          <svg class="note-icon" aria-hidden="true"><use href="#i-note"/></svg>
+          Measure <span id="cur-num" class="num">1</span> of <span id="cur-total">16</span>
+        </div>
+        <div class="nav-btns">
+          <button id="prev-btn" class="btn-ghost" type="button">&larr; Previous</button>
+          <button id="next-btn" class="btn-ghost" type="button">Next &rarr;</button>
+        </div>
+      </div>
+      <div class="rating-buttons" id="rating-buttons" role="group" aria-label="Difficulty rating">
+        <!-- buttons 1..10 injected -->
+      </div>
+      <div class="hint">Tap 1 (easy) through 10 (hard). You can also tap any column of the graph to jump to that measure.</div>
+    </div>
+  </section>
+
+  <section class="panel" aria-label="Difficulty graph">
+    <div class="scroll-toolbar no-print">
+      <div class="scroll-group">
+        <button id="scroll-start" class="btn-icon" type="button" title="Jump to start">&laquo;</button>
+        <button id="scroll-left" class="btn-icon" type="button" title="Scroll left">&larr; Scroll</button>
+      </div>
+      <div class="scroll-status" id="scroll-status">Measures 1–16</div>
+      <div class="scroll-group">
+        <button id="scroll-right" class="btn-icon" type="button" title="Scroll right">Scroll &rarr;</button>
+        <button id="scroll-end" class="btn-icon" type="button" title="Jump to end">&raquo;</button>
+      </div>
+    </div>
+    <div id="graph-container"></div>
+    <div class="legend no-print">
+      <span><span class="sw"></span>Difficulty dash</span>
+      <span><span class="sw-line"></span>Connector between measures</span>
+      <span>Students fill cells from the bottom up every time they practice.</span>
+    </div>
+  </section>
+
+  <section class="panel piece-card no-print" aria-label="Piece details">
+    <div class="title">
+      <svg aria-hidden="true"><use href="#i-notes"/></svg>
+      <span>Piece details</span>
+    </div>
+    <div class="piece-grid">
+      <label class="piece-field">
+        <span class="piece-label">Measures in the piece</span>
+        <div class="stepper" role="group" aria-label="Measures stepper">
+          <button id="dec-measures" type="button" aria-label="Fewer measures">−</button>
+          <input id="measures" type="number" min="1" max="200" value="16" inputmode="numeric" aria-label="Number of measures" />
+          <button id="inc-measures" type="button" aria-label="More measures">+</button>
+        </div>
+      </label>
+      <label class="piece-field">
+        <span class="piece-label">Song name</span>
+        <input id="song-name" type="text" placeholder="e.g. Twinkle, Twinkle" maxlength="80" />
+      </label>
+      <label class="piece-field">
+        <span class="piece-label">Student name</span>
+        <input id="student-name" type="text" placeholder="Student's name" maxlength="80" />
+      </label>
+    </div>
+  </section>
+
+  <div class="foot-deco no-print">
+    <svg aria-hidden="true"><use href="#i-note"/></svg>
+    <span>Keep practicing — one measure at a time.</span>
+    <svg aria-hidden="true"><use href="#i-notes"/></svg>
+  </div>
+
+</main>
+
+<!-- Print preview modal -->
+<div class="modal-overlay no-print" id="preview-modal" role="dialog" aria-modal="true" aria-labelledby="preview-title">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="preview-title">
+        <svg aria-hidden="true"><use href="#i-print"/></svg>
+        Print preview
+      </h2>
+      <div class="modal-actions">
+        <button id="preview-cancel" class="btn-ghost" type="button">Cancel</button>
+        <button id="preview-print" class="btn-primary btn-icon" type="button">
+          <svg aria-hidden="true"><use href="#i-print"/></svg>
+          <span>Print</span>
+        </button>
+      </div>
+    </div>
+    <div class="modal-body" id="preview-body"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const MAX_RATING = 10;
+  const EXTRA_ROWS = 2; // unlabeled rows above row 10
+  const TOTAL_ROWS = MAX_RATING + EXTRA_ROWS;
+  const MEASURES_PER_PRINT_PAGE = 32;
+
+  const state = {
+    total: 16,
+    ratings: {},   // 1-indexed measure -> 1..10
+    current: 1,
+    songName: '',
+    studentName: '',
+  };
+
+  const el = {
+    measures: document.getElementById('measures'),
+    decMeasures: document.getElementById('dec-measures'),
+    incMeasures: document.getElementById('inc-measures'),
+    songName: document.getElementById('song-name'),
+    studentName: document.getElementById('student-name'),
+    printBtn: document.getElementById('print-btn'),
+    resetBtn: document.getElementById('reset-btn'),
+    curNum: document.getElementById('cur-num'),
+    curTotal: document.getElementById('cur-total'),
+    prevBtn: document.getElementById('prev-btn'),
+    nextBtn: document.getElementById('next-btn'),
+    ratingBtns: document.getElementById('rating-buttons'),
+    graphContainer: document.getElementById('graph-container'),
+    scrollLeft: document.getElementById('scroll-left'),
+    scrollRight: document.getElementById('scroll-right'),
+    scrollStart: document.getElementById('scroll-start'),
+    scrollEnd: document.getElementById('scroll-end'),
+    scrollStatus: document.getElementById('scroll-status'),
+    previewModal: document.getElementById('preview-modal'),
+    previewBody: document.getElementById('preview-body'),
+    previewCancel: document.getElementById('preview-cancel'),
+    previewPrint: document.getElementById('preview-print'),
+  };
+
+  // ---- build rating buttons ----
+  for (let i = 1; i <= MAX_RATING; i++) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = String(i);
+    b.dataset.rating = String(i);
+    b.addEventListener('click', () => setRating(state.current, i, true));
+    el.ratingBtns.appendChild(b);
+  }
+
+  // ---- state persistence ----
+  const LS_KEY = 'music-graph-v3';
+  function save() {
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify({
+        total: state.total,
+        ratings: state.ratings,
+        current: state.current,
+        songName: state.songName,
+        studentName: state.studentName,
+      }));
+    } catch (e) {}
+  }
+  function load() {
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      if (!raw) return;
+      const d = JSON.parse(raw);
+      if (d && typeof d.total === 'number') state.total = d.total;
+      if (d && d.ratings) state.ratings = d.ratings;
+      if (d && typeof d.current === 'number') state.current = d.current;
+      if (d && typeof d.songName === 'string') state.songName = d.songName;
+      if (d && typeof d.studentName === 'string') state.studentName = d.studentName;
+    } catch (e) {}
+  }
+  load();
+
+  el.measures.value = state.total;
+  el.songName.value = state.songName;
+  el.studentName.value = state.studentName;
+
+  el.songName.addEventListener('input', () => { state.songName = el.songName.value; save(); });
+  el.studentName.addEventListener('input', () => { state.studentName = el.studentName.value; save(); });
+
+  // ---- events ----
+  function setTotal(n) {
+    if (!Number.isFinite(n)) return;
+    if (n < 1) n = 1;
+    if (n > 200) n = 200;
+    state.total = n;
+    Object.keys(state.ratings).forEach(k => {
+      if (parseInt(k, 10) > n) delete state.ratings[k];
+    });
+    if (state.current > n) state.current = n;
+    el.measures.value = n;
+    render();
+    save();
+  }
+
+  el.measures.addEventListener('input', () => {
+    const n = parseInt(el.measures.value, 10);
+    if (!Number.isFinite(n)) return;
+    setTotal(n);
+  });
+  el.measures.addEventListener('blur', () => { el.measures.value = state.total; });
+  el.decMeasures.addEventListener('click', () => setTotal(state.total - 1));
+  el.incMeasures.addEventListener('click', () => setTotal(state.total + 1));
+
+  el.prevBtn.addEventListener('click', () => {
+    if (state.current > 1) { state.current--; render(); save(); scrollCurrentIntoView(); }
+  });
+  el.nextBtn.addEventListener('click', () => {
+    if (state.current < state.total) { state.current++; render(); save(); scrollCurrentIntoView(); }
+  });
+
+  el.resetBtn.addEventListener('click', () => {
+    const ok = window.confirm('Start a new graph? This will clear all difficulty ratings. This cannot be undone.');
+    if (!ok) return;
+    state.ratings = {};
+    state.current = 1;
+    render();
+    save();
+  });
+
+  el.printBtn.addEventListener('click', openPreview);
+  el.previewCancel.addEventListener('click', closePreview);
+  el.previewPrint.addEventListener('click', doPrint);
+  el.previewModal.addEventListener('click', (ev) => {
+    if (ev.target === el.previewModal) closePreview();
+  });
+
+  window.addEventListener('keydown', (ev) => {
+    if (el.previewModal.classList.contains('open')) {
+      if (ev.key === 'Escape') closePreview();
+      return;
+    }
+    if (ev.target && (ev.target.tagName === 'INPUT' || ev.target.tagName === 'TEXTAREA')) return;
+    if (ev.key === 'ArrowLeft') { el.prevBtn.click(); }
+    else if (ev.key === 'ArrowRight') { el.nextBtn.click(); }
+    else if (/^[1-9]$/.test(ev.key)) { setRating(state.current, parseInt(ev.key, 10), true); }
+    else if (ev.key === '0') { setRating(state.current, 10, true); }
+  });
+
+  // Scroll controls
+  function graphWrap() { return el.graphContainer.querySelector('.graph-wrap'); }
+  function scrollStep() {
+    const w = graphWrap();
+    if (!w) return 0;
+    return Math.max(200, Math.floor(w.clientWidth * 0.8));
+  }
+  el.scrollLeft.addEventListener('click', () => { const w = graphWrap(); if (w) w.scrollBy({ left: -scrollStep(), behavior: 'smooth' }); });
+  el.scrollRight.addEventListener('click', () => { const w = graphWrap(); if (w) w.scrollBy({ left: scrollStep(), behavior: 'smooth' }); });
+  el.scrollStart.addEventListener('click', () => { const w = graphWrap(); if (w) w.scrollTo({ left: 0, behavior: 'smooth' }); });
+  el.scrollEnd.addEventListener('click', () => { const w = graphWrap(); if (w) w.scrollTo({ left: w.scrollWidth, behavior: 'smooth' }); });
+
+  function scrollCurrentIntoView() {
+    const w = graphWrap();
+    if (!w) return;
+    const svg = w.querySelector('svg.graph');
+    if (!svg) return;
+    const activeCol = svg.querySelector('.active-col');
+    if (!activeCol) return;
+    const colX = parseFloat(activeCol.getAttribute('x'));
+    const colW = parseFloat(activeCol.getAttribute('width'));
+    const viewLeft = w.scrollLeft;
+    const viewRight = viewLeft + w.clientWidth;
+    const pad = 40;
+    if (colX < viewLeft + pad) {
+      w.scrollTo({ left: Math.max(0, colX - pad), behavior: 'smooth' });
+    } else if (colX + colW > viewRight - pad) {
+      w.scrollTo({ left: colX + colW - w.clientWidth + pad, behavior: 'smooth' });
+    }
+  }
+
+  function setRating(measure, rating, advance) {
+    if (measure < 1 || measure > state.total) return;
+    state.ratings[measure] = rating;
+    if (advance && state.current < state.total) {
+      state.current++;
+    }
+    render();
+    save();
+    scrollCurrentIntoView();
+  }
+
+  // ---- preview ----
+  function buildPageHeader(pg, forPrint) {
+    const head = document.createElement('div');
+    head.className = forPrint ? 'print-head' : 'preview-head';
+    if (pg.song) {
+      const t = document.createElement('div');
+      t.className = 'page-song';
+      t.textContent = pg.song;
+      head.appendChild(t);
+    }
+    if (pg.student) {
+      const s = document.createElement('div');
+      s.className = 'page-student';
+      s.textContent = pg.student;
+      head.appendChild(s);
+    }
+    const r = document.createElement('div');
+    r.className = 'page-range';
+    r.textContent = pg.range;
+    head.appendChild(r);
+    return head;
+  }
+
+  function openPreview() {
+    el.previewBody.innerHTML = '';
+    const pages = buildPrintPages();
+    pages.forEach(pg => {
+      const box = document.createElement('div');
+      box.className = 'preview-page';
+      box.appendChild(buildPageHeader(pg, false));
+      box.appendChild(pg.svg);
+      el.previewBody.appendChild(box);
+    });
+    el.previewModal.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+  function closePreview() {
+    el.previewModal.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+  function doPrint() {
+    // Render the print pages into the graph container so the print stylesheet uses them
+    el.graphContainer.innerHTML = '';
+    const pages = buildPrintPages();
+    pages.forEach(pg => {
+      const page = document.createElement('div');
+      page.className = 'print-page';
+      page.appendChild(buildPageHeader(pg, true));
+      page.appendChild(pg.svg);
+      el.graphContainer.appendChild(page);
+    });
+    closePreview();
+    setTimeout(() => {
+      window.print();
+      setTimeout(() => render(), 50);
+    }, 30);
+  }
+
+  function buildPrintPages() {
+    const out = [];
+    const pages = Math.max(1, Math.ceil(state.total / MEASURES_PER_PRINT_PAGE));
+    const song = (state.songName || '').trim() || 'Practice Chart';
+    const student = (state.studentName || '').trim();
+    for (let p = 0; p < pages; p++) {
+      const start = p * MEASURES_PER_PRINT_PAGE + 1;
+      const end = Math.min(state.total, (p + 1) * MEASURES_PER_PRINT_PAGE);
+      out.push({
+        song: song,
+        student: student,
+        range: 'Measures ' + start + '–' + end +
+               ' · Fill one cell from the bottom up each time you practice.',
+        svg: buildSvg(start, end, false),
+      });
+    }
+    return out;
+  }
+
+  // ---- render ----
+  function render() {
+    el.curNum.textContent = state.current;
+    el.curTotal.textContent = state.total;
+
+    const selected = state.ratings[state.current];
+    Array.from(el.ratingBtns.children).forEach(btn => {
+      btn.dataset.selected = String(parseInt(btn.dataset.rating, 10) === selected);
+    });
+
+    el.prevBtn.disabled = state.current <= 1;
+    el.nextBtn.disabled = state.current >= state.total;
+
+    renderGraph();
+    updateScrollStatus();
+  }
+
+  function renderGraph() {
+    el.graphContainer.innerHTML = '';
+    const wrap = document.createElement('div');
+    wrap.className = 'graph-wrap';
+    wrap.appendChild(buildSvg(1, state.total, true));
+    el.graphContainer.appendChild(wrap);
+    wrap.addEventListener('scroll', updateScrollStatus);
+  }
+
+  function updateScrollStatus() {
+    const w = graphWrap();
+    if (!w || !el.scrollStatus) return;
+    const svg = w.querySelector('svg.graph');
+    if (!svg) { el.scrollStatus.textContent = 'Measures 1–' + state.total; return; }
+    // Figure out first/last visible measure columns
+    const rect = svg.getBoundingClientRect();
+    const wRect = w.getBoundingClientRect();
+    const viewLeft = w.scrollLeft;
+    const viewRight = viewLeft + w.clientWidth;
+    // Column hits by class
+    const hits = svg.querySelectorAll('.hit');
+    let first = null, last = null;
+    hits.forEach((hit, idx) => {
+      const x = parseFloat(hit.getAttribute('x'));
+      const ww = parseFloat(hit.getAttribute('width'));
+      if (x + ww >= viewLeft && x <= viewRight) {
+        if (first === null) first = idx + 1;
+        last = idx + 1;
+      }
+    });
+    if (first === null) first = 1;
+    if (last === null) last = state.total;
+    el.scrollStatus.textContent = 'Showing measures ' + first + '–' + last + ' of ' + state.total;
+  }
+
+  function buildSvg(startMeasure, endMeasure, interactive) {
+    const count = endMeasure - startMeasure + 1;
+    const rows = TOTAL_ROWS;
+    const cssCell = getComputedStyle(document.documentElement).getPropertyValue('--cell').trim();
+    const cell = parseInt(cssCell, 10) || 34;
+
+    const padLeft = 44;
+    const padRight = 12;
+    const padTop = 20;
+    const padBottom = 28;
+
+    const w = padLeft + count * cell + padRight;
+    const h = padTop + rows * cell + padBottom;
+
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('class', 'graph');
+    svg.setAttribute('width', w);
+    svg.setAttribute('height', h);
+    svg.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
+
+    // Shaded background for the unlabeled bonus rows at the top
+    const bonusRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    bonusRect.setAttribute('class', 'bonus-bg');
+    bonusRect.setAttribute('x', padLeft);
+    bonusRect.setAttribute('y', padTop);
+    bonusRect.setAttribute('width', count * cell);
+    bonusRect.setAttribute('height', EXTRA_ROWS * cell);
+    svg.appendChild(bonusRect);
+
+    // Highlight active column (interactive only)
+    if (interactive && state.current >= startMeasure && state.current <= endMeasure) {
+      const cx = padLeft + (state.current - startMeasure) * cell;
+      const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      rect.setAttribute('class', 'active-col');
+      rect.setAttribute('x', cx);
+      rect.setAttribute('y', padTop);
+      rect.setAttribute('width', cell);
+      rect.setAttribute('height', rows * cell);
+      svg.appendChild(rect);
+    }
+
+    // Horizontal grid lines (rows+1)
+    for (let r = 0; r <= rows; r++) {
+      const y = padTop + r * cell;
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      const isEdge = (r === 0 || r === rows);
+      line.setAttribute('class', isEdge ? 'major' : 'minor');
+      line.setAttribute('x1', padLeft);
+      line.setAttribute('y1', y);
+      line.setAttribute('x2', padLeft + count * cell);
+      line.setAttribute('y2', y);
+      svg.appendChild(line);
+    }
+    // Y-axis labels: only 1..10 (bottom 10 rows). Labels sit on the gridline for that rating.
+    for (let r = 1; r <= MAX_RATING; r++) {
+      const yLabel = padTop + (rows - r) * cell + 4;
+      const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      t.setAttribute('class', 'axis-label');
+      t.setAttribute('x', padLeft - 8);
+      t.setAttribute('y', yLabel);
+      t.setAttribute('text-anchor', 'end');
+      t.textContent = String(r);
+      svg.appendChild(t);
+    }
+
+    // Vertical grid lines
+    for (let c = 0; c <= count; c++) {
+      const x = padLeft + c * cell;
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      const isEdge = (c === 0 || c === count);
+      line.setAttribute('class', isEdge ? 'major' : 'minor');
+      line.setAttribute('x1', x);
+      line.setAttribute('y1', padTop);
+      line.setAttribute('x2', x);
+      line.setAttribute('y2', padTop + rows * cell);
+      svg.appendChild(line);
+    }
+    // X-axis labels
+    for (let i = 0; i < count; i++) {
+      const measure = startMeasure + i;
+      const x = padLeft + i * cell + cell / 2;
+      const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      t.setAttribute('class', 'col-label');
+      t.setAttribute('x', x);
+      t.setAttribute('y', padTop + rows * cell + 16);
+      t.setAttribute('text-anchor', 'middle');
+      t.textContent = String(measure);
+      svg.appendChild(t);
+    }
+
+    // Helper: y for a rating (1..MAX_RATING) — sits on the gridline for that rating
+    const yFor = (rating) => padTop + (rows - rating) * cell;
+
+    // Build info for each rated measure
+    const pts = [];
+    for (let i = 0; i < count; i++) {
+      const measure = startMeasure + i;
+      const rating = state.ratings[measure];
+      if (!rating) continue;
+      const left = padLeft + i * cell;
+      const right = padLeft + (i + 1) * cell;
+      pts.push({ measure, index: i, left, right, y: yFor(rating) });
+    }
+
+    // Vertical connectors between adjacent rated measures (straight, at the shared boundary)
+    for (let k = 0; k < pts.length - 1; k++) {
+      const a = pts[k], b = pts[k + 1];
+      if (b.measure !== a.measure + 1) continue;
+      if (a.y === b.y) continue; // same level, horizontal dashes already meet
+      const x = a.right; // shared boundary between measures
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('class', 'connector');
+      line.setAttribute('x1', x);
+      line.setAttribute('y1', a.y);
+      line.setAttribute('x2', x);
+      line.setAttribute('y2', b.y);
+      svg.appendChild(line);
+    }
+
+    // Horizontal dashes across each rated cell (full cell width so adjacent equal-rated dashes read as one line)
+    for (const pt of pts) {
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('class', 'dash');
+      line.setAttribute('x1', pt.left);
+      line.setAttribute('y1', pt.y);
+      line.setAttribute('x2', pt.right);
+      line.setAttribute('y2', pt.y);
+      svg.appendChild(line);
+    }
+
+    // Invisible hit areas per column (interactive only)
+    if (interactive) {
+      for (let i = 0; i < count; i++) {
+        const measure = startMeasure + i;
+        const x = padLeft + i * cell;
+        const hit = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        hit.setAttribute('class', 'hit');
+        hit.setAttribute('x', x);
+        hit.setAttribute('y', padTop);
+        hit.setAttribute('width', cell);
+        hit.setAttribute('height', rows * cell);
+        hit.addEventListener('click', () => {
+          state.current = measure;
+          render();
+          save();
+        });
+        svg.appendChild(hit);
+      }
+    }
+
+    return svg;
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>
